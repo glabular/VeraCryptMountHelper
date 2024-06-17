@@ -187,7 +187,7 @@ internal class Program
     private static string GetEncryptedVolumePath()
     {
         Console.Write("Paste the path to the encrypted volume or drag and drop the file onto the console window and press enter: ");
-        var encryptedVolumePath = Console.ReadLine()?.Trim();
+        var encryptedVolumePath = Console.ReadLine()?.Trim().Trim('"');
 
         return encryptedVolumePath;
     }
