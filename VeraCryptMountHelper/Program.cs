@@ -15,44 +15,56 @@ internal class Program
 
         if (File.Exists(configFilePath))
         {
-            _veraCryptExecutablePath = ReadPathFromConfigFile(configFilePath);
-            Console.WriteLine($"VeraCrypt executable file is set to \"{_veraCryptExecutablePath}\".");
-            Console.WriteLine("Do you want to continue?..");
+            _veraCryptExecutablePath = ReadPathFromConfigFile(configFilePath);           
 
             do
             {
-                Console.Write("Press Enter to continue or 2 to edit the path: ");
+                Console.WriteLine($"VeraCrypt executable file is set to \"{_veraCryptExecutablePath}\".");
+                Console.Write("Press Enter to confirm or 2 to edit the path: ");
                 var key = Console.ReadKey(true);
                 if (key.Key == ConsoleKey.Enter)
                 {
-                    configured = true;
+                    if (!string.IsNullOrEmpty(_veraCryptExecutablePath) && File.Exists(_veraCryptExecutablePath))
+                    {                        
+                        configured = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("\nInvalid path. Please, try again.");
+                        configured = false;
+                    }
                 }
                 else if (key.KeyChar == '2')
                 {
                     Console.WriteLine();
                     Console.WriteLine("You selected edit file.");
-                    PromptAndSetVeraCryptExecutablePath(configFilePath);
-                    configured = true;
+                    PromptAndSetVeraCryptExecutablePath(configFilePath);                    
                 }
                 else
                 {
                     Console.WriteLine("Invalid selection.");
+                    continue;
                 }
             }
             while (!configured);
         }
         else
         {
-            PromptAndSetVeraCryptExecutablePath(configFilePath);
+            if (VeraCryptPathAutomaticallyConfigured(configFilePath))
+            {
+                _veraCryptExecutablePath = ReadPathFromConfigFile(configFilePath);
+                Console.WriteLine($"VeraCrypt executable file is automatically set to \"{_veraCryptExecutablePath}\".");
+                Console.WriteLine("Press ENTER to continue.");
+                Console.ReadLine();
+            }
+            else
+            {
+                Console.WriteLine("Could not find VeraCrypt executable file automatically.");
+                PromptAndSetVeraCryptExecutablePath(configFilePath);
+            }
         }
 
-        Console.Clear();
-
-        if (!File.Exists(_veraCryptExecutablePath))
-        {
-            Console.WriteLine("VeraCrypt executable not found.");
-            return;
-        }
+        Console.Clear();               
 
         string? encryptedVolumePath;
         do
@@ -124,6 +136,7 @@ internal class Program
             Console.WriteLine("VeraCrypt encountered an error. Possible reasons include:");
             Console.WriteLine("- VeraCrypt was not run with administrative privileges.");
             Console.WriteLine("- Incorrect password for the file.");
+            Console.WriteLine("- Provided file is not a VeraCrypt volume.");
 
             return;
         }
@@ -160,6 +173,31 @@ internal class Program
         }
     }
 
+    private static bool VeraCryptPathAutomaticallyConfigured(string configFilePath)
+    {
+        string[] exeNames = ["VeraCrypt-x64.exe", "VeraCrypt.exe"];
+
+        string[] commonPaths = [
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+        ];
+
+        foreach (var path in commonPaths)
+        {
+            var fullPath = exeNames
+                .Select(exeName => Path.Combine(path, "VeraCrypt", exeName))
+                .FirstOrDefault(File.Exists);
+
+            if (fullPath != null)
+            {
+                File.WriteAllText(configFilePath, fullPath.Trim().Trim('"'));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static void PromptAndSetVeraCryptExecutablePath(string configFilePath)
     {
         Console.Write("Paste the path to the VeraCrypt executable or drag and drop the file onto the console window and press enter: ");
@@ -186,7 +224,7 @@ internal class Program
 
     private static string GetEncryptedVolumePath()
     {
-        Console.Write("Paste the path to the encrypted volume or drag and drop the file onto the console window and press enter: ");
+        Console.Write("Paste the path to your encrypted volume or drag and drop the file onto the console window and press enter: ");
         var encryptedVolumePath = Console.ReadLine()?.Trim().Trim('"');
 
         return encryptedVolumePath;
